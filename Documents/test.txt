@@ -1,0 +1,41 @@
+@csrf_exempt
+def signin(request):
+    if not request.method == 'POST':
+        return JsonResponse({'error':'Send a post request with valid parameters'})
+    
+    username = request.POST['email']
+    password = request.POST['password']
+    print("username",username)
+    if not re.match('[\w\.-]+@[\w\.-]+\.\w{2,4}',username):
+        return JsonResponse({'error':'Enter a valid email'})
+
+    if len(password)< 3:
+        return JsonResponse({'error':'Password needs to be at least 3 character length'})
+
+    UserModel = get_user_model()
+
+    try:
+        user = UserModel.objects.get(email=username)
+        if user.check_password(password):
+            usr_dict = UserModel.objects.filter(email=username).values().first()
+            usr_dict.pop('password')
+
+            if user.session_token != "0":
+                user.session_token = "0"
+                user.save()
+                return JsonResponse({'error':'Previous Session Exists'})
+                
+            token = generate_session_token()
+            print("token",token)
+            user.session_token = token
+            user.save()
+            #time.sleep(10000)
+            login(request, user)
+            print("ust_dict",usr_dict)
+            time.sleep(10000)
+            return JsonResponse({'token': token, 'user': usr_dict})
+        else:
+            return JsonResponse({'error':'Invalid password'})
+
+    except UserModel.DoesNotExist:
+        return JsonResponse({'error':'Invalid Email'})
